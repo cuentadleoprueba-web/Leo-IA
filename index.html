@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leo IA</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;background:#f0f4f8;height:100vh;display:flex;flex-direction:column}
+#header{background:white;padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:12px}
+#logo{width:36px;height:36px;border-radius:50%;background:#185FA5;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:16px}
+#header h1{font-size:16px;font-weight:600;color:#1a202c}
+#header p{font-size:12px;color:#718096}
+#chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;gap:10px;align-items:flex-start;animation:fi 0.2s ease}
+.msg.user{flex-direction:row-reverse}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.av.leo{background:#dbeafe;color:#185FA5}
+.av.user{background:#dcfce7;color:#16a34a}
+.bub{max-width:78%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.6}
+.msg.leo .bub{background:white;border:1px solid #e2e8f0;border-top-left-radius:4px;color:#1a202c}
+.msg.user .bub{background:#185FA5;color:white;border-top-right-radius:4px}
+.typing{display:flex;gap:4px;align-items:center;padding:12px 14px}
+.dot{width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:b 1.2s infinite}
+.dot:nth-child(2){animation-delay:0.2s}
+.dot:nth-child(3){animation-delay:0.4s}
+@keyframes b{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+#bottom{padding:12px 16px;background:white;border-top:1px solid #e2e8f0;display:flex;gap:10px;align-items:flex-end}
+#inp{flex:1;resize:none;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;font-size:14px;font-family:sans-serif;outline:none;max-height:100px;line-height:1.5}
+#inp:focus{border-color:#185FA5}
+#btn{width:40px;height:40px;border-radius:50%;background:#185FA5;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#btn svg{width:16px;height:16px;fill:white}
+#key-screen{position:fixed;inset:0;background:#f0f4f8;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;z-index:99}
+#key-screen h2{font-size:20px;font-weight:700;color:#1a202c;text-align:center}
+#key-screen p{font-size:14px;color:#718096;text-align:center;line-height:1.6}
+#key-inp{width:100%;max-width:400px;padding:12px 16px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px;font-family:sans-serif;outline:none}
+#key-inp:focus{border-color:#185FA5}
+#key-btn{width:100%;max-width:400px;padding:13px;background:#185FA5;color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer}
+#key-logo{width:64px;height:64px;border-radius:50%;background:#185FA5;display:flex;align-items:center;justify-content:center;color:white;font-size:28px;font-weight:bold}
+</style>
+</head>
+<body>
+
+<div id="key-screen">
+  <div id="key-logo">L</div>
+  <h2>Bienvenido a Leo IA</h2>
+  <p>Para usar Leo IA necesitas una API key de Anthropic.<br>Es gratis en <strong>console.anthropic.com</strong></p>
+  <input id="key-inp" type="password" placeholder="Pega tu API key aquí (sk-ant-...)">
+  <button id="key-btn" onclick="saveKey()">Entrar a Leo IA</button>
+</div>
+
+<div id="header">
+  <div id="logo">L</div>
+  <div>
+    <h1>Leo IA</h1>
+    <p id="status">En línea · listo para ayudarte</p>
+  </div>
+</div>
+
+<div id="chat"></div>
+
+<div id="bottom">
+  <textarea id="inp" rows="1" placeholder="Escribe tu mensaje..."></textarea>
+  <button id="btn" onclick="send()">
+    <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+  </button>
+</div>
+
+<script>
+let history=[];
+let thinking=false;
+let API_KEY='';
+
+function saveKey(){
+  const k=document.getElementById('key-inp').value.trim();
+  if(!k.startsWith('sk-ant-')){alert('La key debe empezar por sk-ant-');return;}
+  API_KEY=k;
+  localStorage.setItem('leo_key',k);
+  document.getElementById('key-screen').style.display='none';
+  addMsg('leo','¡Hola! Soy Leo IA, tu asistente inteligente. Puedo ayudarte con cualquier pregunta, crear código y mucho más. ¿En qué te ayudo hoy?');
+}
+
+window.onload=function(){
+  const saved=localStorage.getItem('leo_key');
+  if(saved){API_KEY=saved;document.getElementById('key-screen').style.display='none';addMsg('leo','¡Hola de nuevo! Soy Leo IA. ¿En qué te ayudo hoy?');}
+};
+
+function addMsg(role,text){
+  const chat=document.getElementById('chat');
+  const d=document.createElement('div');
+  d.className='msg '+role;
+  const av=document.createElement('div');
+  av.className='av '+(role==='leo'?'leo':'user');
+  av.textContent=role==='leo'?'L':'Tú'[0];
+  const b=document.createElement('div');
+  b.className='bub';
+  b.textContent=text;
+  d.appendChild(av);d.appendChild(b);
+  chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;
+}
+
+function showTyping(){
+  const chat=document.getElementById('chat');
+  const d=document.createElement('div');
+  d.className='msg leo';d.id='typing';
+  d.innerHTML='<div class="av leo">L</div><div class="bub typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  chat.appendChild(d);chat.scrollTop=chat.scrollHeight;
+}
+
+async function send(){
+  if(thinking)return;
+  const inp=document.getElementById('inp');
+  const text=inp.value.trim();
+  if(!text)return;
+  inp.value='';inp.style.height='auto';
+  addMsg('user',text);
+  history.push({role:'user',content:text});
+  thinking=true;showTyping();
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':API_KEY,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:'Eres Leo IA, un asistente amigable e inteligente que habla siempre en español. Responde de forma clara, concisa y amigable.',
+        messages:history
+      })
+    });
+    const data=await res.json();
+    const reply=data.content?.map(c=>c.text||'').join('')||'Lo siento, no pude responder.';
+    document.getElementById('typing')?.remove();
+    addMsg('leo',reply);
+    history.push({role:'assistant',content:reply});
+  }catch(e){
+    document.getElementById('typing')?.remove();
+    addMsg('leo','Tuve un pequeño problema. Intenta de nuevo.');
+  }
+  thinking=false;
+}
+
+document.getElementById('inp').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}
+});
+document.getElementById('inp').addEventListener('input',function(){
+  this.style.height='auto';
+  this.style.height=Math.min(this.scrollHeight,100)+'px';
+});
+</script>
+</body>
+  </html>
